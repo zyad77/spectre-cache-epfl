@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flush+Reload — Spectre EPFL</title>
+  <link rel="stylesheet" href="style.css?v=10">
+  <script defer src="theme.js?v=10"></script>
+  <style>
+    /* ── ANNOTATED CODE ── */
+    .annotated-code {
+      background: #06060a;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+    .annotated-code .code-header {
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .annotated-code .code-header .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block;
+    }
+    .code-body { padding: 0; }
+    .code-row {
+      display: flex;
+      position: relative;
+    }
+    .code-row:hover { background: rgba(255,255,255,0.02); }
+    .code-row.highlighted { background: rgba(255,58,58,0.06); border-left: 2px solid var(--accent); }
+    .code-row.highlighted-blue { background: rgba(96,165,250,0.06); border-left: 2px solid var(--blue); }
+    .code-row.highlighted-green { background: rgba(34,197,94,0.06); border-left: 2px solid var(--green); }
+    .code-row.highlighted-orange { background: rgba(251,146,60,0.06); border-left: 2px solid var(--orange); }
+    .line-num {
+      width: 44px;
+      flex-shrink: 0;
+      text-align: right;
+      padding: 0 12px 0 0;
+      color: var(--text-light);
+      font-size: 11px;
+      user-select: none;
+      padding-top: 1px;
+    }
+    .line-code {
+      flex: 1;
+      padding: 0 20px 0 4px;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .ann-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      vertical-align: middle;
+      margin-left: 10px;
+    }
+    .ann-tag.red { background: rgba(255,58,58,0.15); color: #ff6b6b; }
+    .ann-tag.blue { background: rgba(96,165,250,0.15); color: #93c5fd; }
+    .ann-tag.green { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .ann-tag.orange { background: rgba(251,146,60,0.15); color: #fdba74; }
+
+    /* annotations panel */
+    .annotation-panels {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .ann-panel {
+      display: flex;
+      gap: 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      align-items: flex-start;
+    }
+    .ann-panel-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .ann-panel-num.red { background: rgba(255,58,58,0.15); color: #ff6b6b; }
+    .ann-panel-num.blue { background: rgba(96,165,250,0.15); color: #93c5fd; }
+    .ann-panel-num.green { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .ann-panel-num.orange { background: rgba(251,146,60,0.15); color: #fdba74; }
+    .ann-panel-body h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .ann-panel-body p { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .ann-panel-body code { font-family: var(--font-mono); font-size: 11px; color: var(--blue); }
+
+    /* output block */
+    .output-block {
+      background: #030305;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .output-header {
+      background: rgba(34,197,94,0.06);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--green);
+    }
+    .output-body {
+      padding: 16px 20px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--text-muted);
+    }
+    .output-body .hl { color: var(--green); font-weight: 700; }
+    .output-body .hl-y { color: var(--yellow); }
+    .output-body .hl-b { color: var(--blue); }
+
+    /* two-col layout */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-brand"><span>Spectre</span> &amp; Cache</a>
+    <button id="nav-toggle" class="nav-toggle" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="context.html">Context</a></li>
+      <li><a href="flush-reload.html" class="active">Flush+Reload</a></li>
+      <li><a href="spectre.html">Spectre</a></li>
+      <li><a href="barriers.html">Barriers</a></li>
+      <li><a href="results.html">Results</a></li>
+      <li><a href="report.html">Report</a></li>
+    </ul>
+    <button class="theme-toggle" type="button" onclick="window.toggleSpectreTheme && window.toggleSpectreTheme()" aria-label="Passer en mode sombre" aria-pressed="false">
+      <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+      <span class="theme-toggle-text">Mode sombre</span>
+    </button>
+  </div>
+</nav>
+
+<div class="page-hero">
+  <div class="container">
+    <div class="section-tag">Technique d'attaque</div>
+    <h1>Flush+Reload</h1>
+    <p>La primitive de canal auxiliaire cache qui rend Spectre possible. Implémentation réelle annotée + simulation interactive.</p>
+  </div>
+</div>
+
+<!-- THEORY -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Principe</div>
+      <h2>Comment fonctionne Flush+Reload</h2>
+      <p>Trois phases, une observation : mesurer si une adresse mémoire a été accédée par un autre processus (ou par une exécution spéculative).</p>
+    </div>
+
+    <div class="timeline">
+      <div class="tl-item active">
+        <div class="tl-dot" style="border-color:var(--accent);color:var(--accent);">F</div>
+        <div class="tl-content">
+          <h3>1. FLUSH — Invalider le cache</h3>
+          <p>L'attaquant vide du cache toutes les lignes du tableau de sondage avec <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">_mm_clflush()</code>. Après cette phase, chaque accès provoquera un cache miss coûteux (~200 cycles).</p>
+        </div>
+      </div>
+      <div class="tl-item active">
+        <div class="tl-dot" style="border-color:var(--yellow);color:var(--yellow);">V</div>
+        <div class="tl-content">
+          <h3>2. VICTIM ACCESS — Déclencher l'accès secret</h3>
+          <p>Le code accède à <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">array[secret * CACHE_LINE]</code>. Cette ligne est chargée en cache L1/L2 (~4 cycles pour les accès suivants).</p>
+        </div>
+      </div>
+      <div class="tl-item active">
+        <div class="tl-dot" style="border-color:var(--green);color:var(--green);">R</div>
+        <div class="tl-content">
+          <h3>3. RELOAD — Mesurer les latences</h3>
+          <p>On mesure via <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">__rdtscp()</code> le temps d'accès à chaque index. L'index avec une latence &lt; threshold est en cache → c'est la valeur secrète.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REAL CODE ANNOTATED -->
+<section class="alt">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Implémentation réelle</div>
+      <h2>Code annoté — <code style="font-size:0.85em;font-family:var(--font-mono);">flush_reload.c</code></h2>
+      <p>L'implémentation complète sur machine réelle (WSL/Linux, Intel x86). Chaque décision de conception est expliquée ci-dessous.</p>
+    </div>
+
+    <div class="annotated-code">
+      <div class="code-header">
+        <span class="dot" style="background:#ff5f57;"></span>
+        <span class="dot" style="background:#febc2e;"></span>
+        <span class="dot" style="background:#28c840;"></span>
+        flush_reload.c &nbsp;·&nbsp; gcc -O2 -march=native flush_reload.c -o flush_reload
+      </div>
+      <div class="code-body">
+
+<div class="code-row"><span class="line-num">1</span><span class="line-code"><span style="color:#4a4a6a;">#include &lt;stdio.h&gt;</span></span></div>
+<div class="code-row"><span class="line-num">2</span><span class="line-code"><span style="color:#4a4a6a;">#include &lt;stdint.h&gt;</span></span></div>
+<div class="code-row"><span class="line-num">3</span><span class="line-code"><span style="color:#4a4a6a;">#include &lt;stdlib.h&gt;</span></span></div>
+<div class="code-row"><span class="line-num">4</span><span class="line-code"><span style="color:#4a4a6a;">#include &lt;string.h&gt;</span></span></div>
+<div class="code-row highlighted-blue"><span class="line-num">5</span><span class="line-code"><span style="color:#4a4a6a;">#include &lt;x86intrin.h&gt;</span>  <span style="color:#4a4a6a;">/* _mm_clflush, __rdtscp, _mm_lfence */</span><span class="ann-tag blue">①</span></span></div>
+<div class="code-row"><span class="line-num">6</span><span class="line-code"></span></div>
+<div class="code-row highlighted-orange"><span class="line-num">7</span><span class="line-code"><span style="color:#fb923c;">#define</span> CACHE_LINE <span style="color:#facc15;">4096</span>  <span style="color:#4a4a6a;">/* stride entre entrées du probe array */</span><span class="ann-tag orange">②</span></span></div>
+<div class="code-row"><span class="line-num">8</span><span class="line-code"><span style="color:#fb923c;">#define</span> N <span style="color:#facc15;">256</span>            <span style="color:#4a4a6a;">/* 256 valeurs possibles (1 octet) */</span></span></div>
+<div class="code-row"><span class="line-num">9</span><span class="line-code"></span></div>
+<div class="code-row"><span class="line-num">10</span><span class="line-code"><span style="color:#a78bfa;">uint8_t</span> array[N * CACHE_LINE];</span></div>
+<div class="code-row"><span class="line-num">11</span><span class="line-code"><span style="color:#fb923c;">volatile</span> <span style="color:#a78bfa;">uint8_t</span> temp = <span style="color:#facc15;">0</span>;</span></div>
+<div class="code-row"><span class="line-num">12</span><span class="line-code"></span></div>
+<div class="code-row"><span class="line-num">13</span><span class="line-code"><span style="color:#a78bfa;">int</span> <span style="color:#60a5fa;">main</span>(<span style="color:#a78bfa;">int</span> argc, <span style="color:#a78bfa;">char</span> **argv)</span></div>
+<div class="code-row"><span class="line-num">14</span><span class="line-code">{</span></div>
+<div class="code-row"><span class="line-num">15</span><span class="line-code">    <span style="color:#a78bfa;">uint8_t</span> secret = <span style="color:#facc15;">42</span>;</span></div>
+<div class="code-row"><span class="line-num">16</span><span class="line-code">    <span style="color:#a78bfa;">int</span> scores[N] = {<span style="color:#facc15;">0</span>};</span></div>
+<div class="code-row"><span class="line-num">17</span><span class="line-code">    <span style="color:#a78bfa;">uint64_t</span> best_time = UINT64_MAX;</span></div>
+<div class="code-row"><span class="line-num">18</span><span class="line-code">    <span style="color:#a78bfa;">unsigned int</span> junk = <span style="color:#facc15;">0</span>;</span></div>
+<div class="code-row highlighted-green"><span class="line-num">19</span><span class="line-code">    <span style="color:#a78bfa;">int</span> threshold = <span style="color:#facc15;">80</span>;<span class="ann-tag green">③</span></span></div>
+<div class="code-row highlighted-green"><span class="line-num">20</span><span class="line-code">    <span style="color:#fb923c;">const</span> <span style="color:#a78bfa;">char</span> *threshold_env = <span style="color:#60a5fa;">getenv</span>(<span style="color:#22c55e;">"FLUSH_THRESHOLD"</span>);</span></div>
+<div class="code-row"><span class="line-num">21</span><span class="line-code"></span></div>
+<div class="code-row"><span class="line-num">22</span><span class="line-code">    <span style="color:#ff3a3a;">if</span> (threshold_env != NULL)</span></div>
+<div class="code-row"><span class="line-num">23</span><span class="line-code">        threshold = <span style="color:#60a5fa;">atoi</span>(threshold_env);</span></div>
+<div class="code-row"><span class="line-num">24</span><span class="line-code">    <span style="color:#ff3a3a;">if</span> (argc > <span style="color:#facc15;">1</span>)</span></div>
+<div class="code-row"><span class="line-num">25</span><span class="line-code">        secret = (<span style="color:#a78bfa;">uint8_t</span>)<span style="color:#60a5fa;">atoi</span>(argv[<span style="color:#facc15;">1</span>]);</span></div>
+<div class="code-row"><span class="line-num">26</span><span class="line-code"></span></div>
+<div class="code-row"><span class="line-num">27</span><span class="line-code">    <span style="color:#60a5fa;">memset</span>(array, <span style="color:#facc15;">1</span>, <span style="color:#fb923c;">sizeof</span>(array));</span></div>
+<div class="code-row"><span class="line-num">28</span><span class="line-code"></span></div>
+<div class="code-row"><span class="line-num">29</span><span class="line-code">    <span style="color:#ff3a3a;">for</span> (<span style="color:#a78bfa;">int</span> try = <span style="color:#facc15;">0</span>; try &lt; <span style="color:#facc15;">1000</span>; try++) {</span></div>
+<div class="code-row highlighted"><span class="line-num">30</span><span class="line-code">        <span style="color:#ff3a3a;">for</span> (<span style="color:#a78bfa;">int</span> i = <span style="color:#facc15;">0</span>; i &lt; N; i++)</span></div>
+<div class="code-row highlighted"><span class="line-num">31</span><span class="line-code">            <span style="color:#60a5fa;">_mm_clflush</span>(&amp;array[i * CACHE_LINE]);  <span style="color:#4a4a6a;">/* FLUSH */</span><span class="ann-tag red">F</span></span></div>
+<div class="code-row highlighted"><span class="line-num">32</span><span class="line-code">        <span style="color:#60a5fa;">_mm_mfence</span>();                           <span style="color:#4a4a6a;">/* attendre fin des flushes */</span></span></div>
+<div class="code-row"><span class="line-num">33</span><span class="line-code"></span></div>
+<div class="code-row highlighted" style="background:rgba(250,204,21,0.06);border-left-color:var(--yellow);"><span class="line-num">34</span><span class="line-code">        temp ^= array[secret * CACHE_LINE];    <span style="color:#4a4a6a;">/* VICTIM ACCESS */</span><span class="ann-tag orange">V</span></span></div>
+<div class="code-row" style="background:rgba(250,204,21,0.06);"><span class="line-num">35</span><span class="line-code">        <span style="color:#60a5fa;">_mm_mfence</span>();</span></div>
+<div class="code-row"><span class="line-num">36</span><span class="line-code"></span></div>
+<div class="code-row"><span class="line-num">37</span><span class="line-code">        <span style="color:#ff3a3a;">for</span> (<span style="color:#a78bfa;">int</span> i = <span style="color:#facc15;">0</span>; i &lt; N; i++) {</span></div>
+<div class="code-row highlighted-orange"><span class="line-num">38</span><span class="line-code">            <span style="color:#a78bfa;">int</span> mix_i = ((i * <span style="color:#facc15;">167</span>) + <span style="color:#facc15;">13</span>) &amp; <span style="color:#facc15;">255</span>;<span class="ann-tag orange">④</span></span></div>
+<div class="code-row"><span class="line-num">39</span><span class="line-code">            <span style="color:#fb923c;">volatile</span> <span style="color:#a78bfa;">uint8_t</span> *addr = &amp;array[mix_i * CACHE_LINE];</span></div>
+<div class="code-row highlighted-green"><span class="line-num">40</span><span class="line-code">            <span style="color:#a78bfa;">uint64_t</span> t1 = <span style="color:#60a5fa;">__rdtscp</span>(&amp;junk);<span class="ann-tag green">R</span></span></div>
+<div class="code-row highlighted-green"><span class="line-num">41</span><span class="line-code">            <span style="color:#60a5fa;">_mm_lfence</span>();                     <span style="color:#4a4a6a;">/* sérialiser avant l'accès */</span></span></div>
+<div class="code-row highlighted-green"><span class="line-num">42</span><span class="line-code">            temp ^= *addr;</span></div>
+<div class="code-row highlighted-green"><span class="line-num">43</span><span class="line-code">            <span style="color:#60a5fa;">_mm_lfence</span>();                     <span style="color:#4a4a6a;">/* sérialiser après l'accès */</span></span></div>
+<div class="code-row highlighted-green"><span class="line-num">44</span><span class="line-code">            <span style="color:#a78bfa;">uint64_t</span> dt = <span style="color:#60a5fa;">__rdtscp</span>(&amp;junk) - t1;</span></div>
+<div class="code-row"><span class="line-num">45</span><span class="line-code"></span></div>
+<div class="code-row"><span class="line-num">46</span><span class="line-code">            <span style="color:#ff3a3a;">if</span> (dt &lt; best_time) best_time = dt;</span></div>
+<div class="code-row highlighted-green"><span class="line-num">47</span><span class="line-code">            <span style="color:#ff3a3a;">if</span> (dt &lt; (<span style="color:#a78bfa;">uint64_t</span>)threshold) scores[mix_i]++;</span></div>
+<div class="code-row"><span class="line-num">48</span><span class="line-code">        }</span></div>
+<div class="code-row"><span class="line-num">49</span><span class="line-code">    }</span></div>
+<div class="code-row"><span class="line-num">50</span><span class="line-code"></span></div>
+<div class="code-row"><span class="line-num">51</span><span class="line-code">    <span style="color:#a78bfa;">int</span> guess = <span style="color:#facc15;">0</span>;</span></div>
+<div class="code-row"><span class="line-num">52</span><span class="line-code">    <span style="color:#ff3a3a;">for</span> (<span style="color:#a78bfa;">int</span> i = <span style="color:#facc15;">1</span>; i &lt; N; i++)</span></div>
+<div class="code-row"><span class="line-num">53</span><span class="line-code">        <span style="color:#ff3a3a;">if</span> (scores[i] &gt; scores[guess]) guess = i;</span></div>
+<div class="code-row"><span class="line-num">54</span><span class="line-code"></span></div>
+<div class="code-row highlighted-blue"><span class="line-num">55</span><span class="line-code">    <span style="color:#a78bfa;">int</span> filtered_guess = <span style="color:#facc15;">1</span>;<span class="ann-tag blue">⑤</span></span></div>
+<div class="code-row highlighted-blue"><span class="line-num">56</span><span class="line-code">    <span style="color:#ff3a3a;">for</span> (<span style="color:#a78bfa;">int</span> i = <span style="color:#facc15;">2</span>; i &lt; N; i++)</span></div>
+<div class="code-row highlighted-blue"><span class="line-num">57</span><span class="line-code">        <span style="color:#ff3a3a;">if</span> (scores[i] &gt; scores[filtered_guess]) filtered_guess = i;</span></div>
+<div class="code-row"><span class="line-num">58</span><span class="line-code"></span></div>
+<div class="code-row"><span class="line-num">59</span><span class="line-code">    <span style="color:#60a5fa;">printf</span>(<span style="color:#22c55e;">"Valeur devinee : %d (secret reel : %d)\n"</span>, guess, secret);</span></div>
+<div class="code-row"><span class="line-num">60</span><span class="line-code">    <span style="color:#60a5fa;">printf</span>(<span style="color:#22c55e;">"Valeur devinee sans index 0 : %d\n"</span>, filtered_guess);</span></div>
+<div class="code-row"><span class="line-num">61</span><span class="line-code">    <span style="color:#60a5fa;">printf</span>(<span style="color:#22c55e;">"Seuil : %d cycles, score guess : %d/1000\n"</span>, threshold, scores[guess]);</span></div>
+<div class="code-row"><span class="line-num">62</span><span class="line-code">    <span style="color:#60a5fa;">printf</span>(<span style="color:#22c55e;">"Acces le plus rapide : %lu cycles\n"</span>, best_time);</span></div>
+<div class="code-row"><span class="line-num">63</span><span class="line-code">    <span style="color:#60a5fa;">printf</span>(<span style="color:#22c55e;">"Top scores:"</span>);</span></div>
+<div class="code-row"><span class="line-num">64</span><span class="line-code">    <span style="color:#ff3a3a;">for</span> (<span style="color:#a78bfa;">int</span> rank = <span style="color:#facc15;">0</span>; rank &lt; <span style="color:#facc15;">8</span>; rank++) {</span></div>
+<div class="code-row"><span class="line-num">65</span><span class="line-code">        <span style="color:#a78bfa;">int</span> best = -<span style="color:#facc15;">1</span>;</span></div>
+<div class="code-row"><span class="line-num">66</span><span class="line-code">        <span style="color:#ff3a3a;">for</span> (<span style="color:#a78bfa;">int</span> i = <span style="color:#facc15;">0</span>; i &lt; N; i++)</span></div>
+<div class="code-row"><span class="line-num">67</span><span class="line-code">            <span style="color:#ff3a3a;">if</span> (best &lt; <span style="color:#facc15;">0</span> || scores[i] &gt; scores[best]) best = i;</span></div>
+<div class="code-row"><span class="line-num">68</span><span class="line-code">        <span style="color:#60a5fa;">printf</span>(<span style="color:#22c55e;">" %d:%d"</span>, best, scores[best]);</span></div>
+<div class="code-row"><span class="line-num">69</span><span class="line-code">        scores[best] = -<span style="color:#facc15;">1</span>;</span></div>
+<div class="code-row"><span class="line-num">70</span><span class="line-code">    }</span></div>
+<div class="code-row"><span class="line-num">71</span><span class="line-code">    <span style="color:#60a5fa;">printf</span>(<span style="color:#22c55e;">"\n"</span>);</span></div>
+<div class="code-row"><span class="line-num">72</span><span class="line-code">    <span style="color:#ff3a3a;">return</span> <span style="color:#facc15;">0</span>;</span></div>
+<div class="code-row"><span class="line-num">73</span><span class="line-code">}</span></div>
+
+      </div>
+    </div>
+
+    <!-- ANNOTATION PANELS -->
+    <div class="annotation-panels" style="margin-top:28px;">
+      <div class="ann-panel">
+        <div class="ann-panel-num blue">① x86intrin.h</div>
+        <div class="ann-panel-body">
+          <h4>Intrinsèques x86 pour le timing et le cache</h4>
+          <p>Ce header fournit <code>_mm_clflush(addr)</code> (vider une ligne de cache), <code>__rdtscp(&junk)</code> (lire le compteur de cycles CPU de manière sérialisée), et <code>_mm_lfence()</code> / <code>_mm_mfence()</code> (barrières mémoire). Sans ces primitives hardware, l'attaque est impossible.</p>
+        </div>
+      </div>
+      <div class="ann-panel">
+        <div class="ann-panel-num orange">② CACHE_LINE = 4096</div>
+        <div class="ann-panel-body">
+          <h4>Pourquoi un stride de 4096 et non 64 ?</h4>
+          <p>Une vraie ligne de cache fait 64 bytes. Le stride de <code>4096</code> (= 64 × page_size / 16) garantit que chaque entrée du probe array tombe sur une page mémoire différente, ce qui contourne les préfetcheurs matériels qui détectent les patterns d'accès réguliers sur des pages consécutives. Un stride de 512 suffirait en théorie, mais 4096 est plus robuste sur les processeurs récents.</p>
+        </div>
+      </div>
+      <div class="ann-panel">
+        <div class="ann-panel-num green">③ Threshold = 80 cycles</div>
+        <div class="ann-panel-body">
+          <h4>Le seuil de discrimination hit / miss</h4>
+          <p>En dessous de <code>80 cycles</code> → cache hit (L1/L2). Au dessus → cache miss (DRAM, ~200+ cycles). Ce seuil est calibré empiriquement pour la machine cible. Il peut être ajusté via la variable d'environnement <code>FLUSH_THRESHOLD=N ./flush_reload</code> sans recompiler. Sur certaines machines il faut monter à 100–120 cycles.</p>
+        </div>
+      </div>
+      <div class="ann-panel">
+        <div class="ann-panel-num orange">④ Permutation mix_i</div>
+        <div class="ann-panel-body">
+          <h4>Accès dans un ordre pseudo-aléatoire pour contrer le préfetcheur</h4>
+          <p><code>mix_i = ((i * 167) + 13) & 255</code> génère une permutation de 0..255 à partir de la suite <code>i = 0..255</code>. En accédant aux entrées dans un ordre non séquentiel, on empêche le prefetcher matériel (qui détecte les strides réguliers) de charger "en avance" des lignes qui fausseraient la mesure. <code>167</code> est choisi copremier avec 256.</p>
+        </div>
+      </div>
+      <div class="ann-panel">
+        <div class="ann-panel-num blue">⑤ filtered_guess (sans index 0)</div>
+        <div class="ann-panel-body">
+          <h4>Pourquoi ignorer l'index 0 ?</h4>
+          <p>L'index 0 (<code>array[0]</code>) est souvent faussement chaud dans le cache pour des raisons indépendantes de l'attaque : préchargement par le loader, accès lors du <code>memset</code>, etc. En reportant séparément le meilleur score parmi les index 1..255, on obtient une estimation plus fiable dans les cas où le secret vaut 0 ou quand index 0 est un faux positif systématique.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- OUTPUT EXAMPLE -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Sortie attendue</div>
+      <h2>Exemple d'exécution</h2>
+      <p>Compilation et exécution avec <code style="font-family:var(--font-mono);font-size:13px;color:var(--blue);">secret = 42</code> (valeur par défaut) puis avec une valeur passée en argument.</p>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div class="code-block" style="margin-bottom:16px;">
+<span class="line"><span class="comment"># Compilation</span></span>
+<span class="line"><span class="fn">gcc</span> -O2 -march=native flush_reload.c -o flush_reload</span>
+<span class="line"></span>
+<span class="line"><span class="comment"># Exécution (secret = 42 par défaut)</span></span>
+<span class="line">./flush_reload</span>
+<span class="line"></span>
+<span class="line"><span class="comment"># Avec un secret personnalisé</span></span>
+<span class="line">./flush_reload <span class="num">137</span></span>
+<span class="line"></span>
+<span class="line"><span class="comment"># Ajuster le threshold sans recompiler</span></span>
+<span class="line"><span class="type">FLUSH_THRESHOLD</span>=<span class="num">100</span> ./flush_reload <span class="num">42</span></span>
+        </div>
+      </div>
+
+      <div>
+        <div class="output-block">
+          <div class="output-header">stdout — exécution typique (secret = 42)</div>
+          <div class="output-body">
+Valeur devinee : <span class="hl">42</span> (secret reel : <span class="hl">42</span>) ✓<br>
+Valeur devinee sans index 0 : <span class="hl">42</span> (secret reel : 42)<br>
+Seuil : <span class="hl-b">80</span> cycles, score guess : <span class="hl">987</span>/1000<br>
+Acces le plus rapide : <span class="hl-y">24</span> cycles<br>
+Top scores: <span class="hl">42:987</span> 0:8 17:3 91:2 203:1 44:1 12:1 7:0
+          </div>
+        </div>
+
+        <div class="alert info" style="margin-top:16px;">
+          <div class="alert-title">Interprétation</div>
+          Score 987/1000 → l'index 42 a été détecté en cache dans 98,7% des itérations. Le bruit résiduel (autres index avec score &lt; 10) vient des préfetcheurs et des interruptions système.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTERACTIVE SIM -->
+<section class="alt">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Simulation interactive</div>
+      <h2>Visualiser les 3 phases</h2>
+      <p>Chaque cellule = une entrée du probe array (stride 4096B). La valeur secrète simulée est <span id="secret-display" style="color:var(--yellow);font-family:var(--font-mono);">?</span>.</p>
+    </div>
+
+    <div class="cache-sim">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">
+          <div style="width:14px;height:14px;border-radius:3px;background:#ff3a3a;"></div> Warm (en cache)
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">
+          <div style="width:14px;height:14px;border-radius:3px;background:#1a1a2a;border:1px solid rgba(255,255,255,0.1);"></div> Cold (hors cache)
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">
+          <div style="width:14px;height:14px;border-radius:3px;background:#facc15;"></div> Hit détecté
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">
+          <div style="width:14px;height:14px;border-radius:3px;background:rgba(96,165,250,0.5);"></div> Valeur secrète
+        </div>
+      </div>
+
+      <div class="cache-grid" id="cacheGrid"></div>
+
+      <div style="margin-top:16px;font-family:var(--font-mono);font-size:11px;color:var(--text-light);">
+        Index 0–255 · Stride 4096B · <span id="state-label">État : initialisé</span>
+      </div>
+
+      <div class="sim-controls">
+        <button class="sim-btn danger" id="btn-flush">① FLUSH — _mm_clflush()</button>
+        <button class="sim-btn" id="btn-victim" disabled>② VICTIM ACCESS</button>
+        <button class="sim-btn success" id="btn-reload" disabled>③ RELOAD — __rdtscp()</button>
+        <button class="sim-btn" id="btn-reset" style="margin-left:auto;">↺ Reset</button>
+        <button class="sim-btn" id="btn-new-secret">🎲 Nouveau secret</button>
+      </div>
+
+      <div class="sim-log" id="simLog">
+        <span class="log-line info">[ Simulation Flush+Reload — Cliquer sur ① pour commencer ]</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY IT WORKS -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Analyse</div>
+      <h2>Pourquoi ça marche</h2>
+    </div>
+
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-icon red">⏱</div>
+        <h3>Différence de timing mesurable</h3>
+        <p>L1 hit : ~24 cycles (mesuré). DRAM miss : ~200 cycles. Threshold à 80 cycles. La séparation est nette et stable sur Intel.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon blue">📐</div>
+        <h3>Stride 4096 bytes</h3>
+        <p>Chaque entrée du probe array est sur une page mémoire différente. Contourne les préfetcheurs qui opèrent sur des patterns intra-page. Plus robuste que le stride 512 habituel.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">🔄</div>
+        <h3>1000 itérations + scores</h3>
+        <p>On répète 1000 fois et on agrège les compteurs <code style="font-family:var(--font-mono);font-size:12px;">scores[i]</code>. Un signal à 98%+ émerge clairement du bruit même avec des interruptions système ponctuelles.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon orange">🔀</div>
+        <h3>Permutation anti-préfetch</h3>
+        <p>L'accès dans l'ordre <code style="font-family:var(--font-mono);font-size:12px;">mix_i = (i×167+13)&255</code> casse le pattern séquentiel que le préfetcheur détecterait et exploiterait, faussant les mesures.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:40px;display:flex;gap:12px;flex-wrap:wrap;">
+      <a href="spectre.html" class="btn btn-primary">Suivant : L'attaque Spectre →</a>
+      <a href="context.html" class="btn btn-ghost">← Contexte</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <strong>Projet Bachelor · EPFL · Printemps 2026</strong> &nbsp;·&nbsp;
+  Zyad Tajeddine (362730) &nbsp;·&nbsp; Encadrant : Thomas Bourgeat
+</footer>
+
+<script>
+document.getElementById('nav-toggle').addEventListener('click', () => {
+  document.getElementById('nav-links').classList.toggle('open');
+});
+
+const N = 256;
+let secret = Math.floor(Math.random() * N);
+let state = 'initial';
+let cacheState = new Array(N).fill('warm');
+
+const grid = document.getElementById('cacheGrid');
+const log = document.getElementById('simLog');
+const stateLabel = document.getElementById('state-label');
+const secretDisplay = document.getElementById('secret-display');
+
+function buildGrid() {
+  grid.innerHTML = '';
+  for (let i = 0; i < N; i++) {
+    const cell = document.createElement('div');
+    cell.className = `cache-line ${cacheState[i]}`;
+    cell.title = `Index ${i} · addr = array[${i}*4096]${i === secret ? ' ← SECRET' : ''}`;
+    cell.id = `cell-${i}`;
+    grid.appendChild(cell);
+  }
+}
+
+function addLog(msg, cls = '') {
+  const line = document.createElement('span');
+  line.className = `log-line ${cls}`;
+  line.textContent = msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setButtons(flush, victim, reload) {
+  document.getElementById('btn-flush').disabled = !flush;
+  document.getElementById('btn-victim').disabled = !victim;
+  document.getElementById('btn-reload').disabled = !reload;
+}
+
+document.getElementById('btn-flush').addEventListener('click', () => {
+  if (state === 'flushed') return;
+  state = 'flushed';
+  stateLabel.textContent = 'État : FLUSHED — _mm_clflush() × 256';
+  addLog('[ FLUSH ] _mm_clflush(&array[i * 4096]) pour i = 0..255', 'miss');
+  addLog('[ FLUSH ] _mm_mfence() — attente fin des flushes', '');
+  addLog('→ 256 lignes invalidées, toutes les données sont en DRAM', '');
+  setButtons(false, true, false);
+  for (let i = 0; i < N; i++) {
+    const cell = document.getElementById(`cell-${i}`);
+    cell.className = 'cache-line flushed';
+    setTimeout(() => {
+      cell.className = 'cache-line cold';
+      cacheState[i] = 'cold';
+    }, i * 4 + 200);
+  }
+});
+
+document.getElementById('btn-victim').addEventListener('click', () => {
+  if (state !== 'flushed') return;
+  state = 'victim';
+  stateLabel.textContent = 'État : VICTIM ACCESS — secret encodé en cache';
+  addLog(`[ VICTIM ] temp ^= array[${secret} * 4096]  ← chargement de l'octet secret`, 'info');
+  addLog(`[ VICTIM ] _mm_mfence()`, 'info');
+  addLog(`→ array[${secret * 4096}] chargé en L1 cache (~4 cycles désormais)`, 'secret');
+  secretDisplay.textContent = '?';
+  setTimeout(() => {
+    cacheState[secret] = 'secret';
+    document.getElementById(`cell-${secret}`).className = 'cache-line secret';
+    stateLabel.textContent = 'État : VICTIM ACCESS — prêt pour RELOAD';
+    setButtons(false, false, true);
+  }, 800);
+});
+
+document.getElementById('btn-reload').addEventListener('click', async () => {
+  if (state !== 'victim') return;
+  state = 'reloaded';
+  stateLabel.textContent = 'État : RELOAD en cours (scan permutté)...';
+  addLog('[ RELOAD ] Scan avec permutation mix_i = (i*167+13)&255', 'info');
+  setButtons(false, false, false);
+  for (let i = 0; i < N; i++) {
+    const mix_i = ((i * 167) + 13) & 255;
+    await new Promise(r => setTimeout(r, 8));
+    if (mix_i === secret) {
+      cacheState[mix_i] = 'accessed';
+      document.getElementById(`cell-${mix_i}`).className = 'cache-line accessed';
+      addLog(`→ mix_i=${mix_i.toString().padStart(3,' ')} : dt = ~24 cycles → HIT ← scores[${mix_i}]++`, 'hit');
+      secretDisplay.textContent = mix_i;
+    }
+  }
+  addLog('', '');
+  addLog(`[ RÉSULTAT ] argmax(scores) = ${secret} → Valeur secrète extraite ✓`, 'secret');
+  stateLabel.textContent = `État : DONE — secret = ${secret} (score ~987/1000)`;
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  cacheState.fill('warm');
+  state = 'initial';
+  stateLabel.textContent = 'État : initialisé';
+  secretDisplay.textContent = '?';
+  log.innerHTML = '<span class="log-line info">[ Simulation réinitialisée ]</span>';
+  setButtons(true, false, false);
+  buildGrid();
+});
+
+document.getElementById('btn-new-secret').addEventListener('click', () => {
+  secret = Math.floor(Math.random() * N);
+  document.getElementById('btn-reset').click();
+  addLog(`[ CONFIG ] Nouveau secret généré (inconnu de l'attaquant)`, 'info');
+});
+
+buildGrid();
+setButtons(true, false, false);
+</script>
+
+</body>
+</html>

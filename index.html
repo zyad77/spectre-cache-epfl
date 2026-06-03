@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spectre & Cache Side-Channels — Projet Bachelor EPFL</title>
+  <link rel="stylesheet" href="style.css?v=10">
+  <script defer src="theme.js?v=10"></script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-brand"><span>Spectre</span> &amp; Cache</a>
+    <button id="nav-toggle" class="nav-toggle" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="context.html">Context</a></li>
+      <li><a href="flush-reload.html">Flush+Reload</a></li>
+      <li><a href="spectre.html">Spectre</a></li>
+      <li><a href="barriers.html">Barriers</a></li>
+      <li><a href="results.html">Results</a></li>
+      <li><a href="report.html">Report</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-bg">
+    <canvas id="heroCanvas"></canvas>
+  </div>
+  <div class="hero-glow"></div>
+  <div class="container">
+    <div class="hero-label">Projet Bachelor · CS-173 · EPFL · Printemps 2026</div>
+    <h1 class="fade-up">
+      Analyse de la vulnérabilité <span class="accent">Spectre</span><br>
+      et des fuites d'information via le cache
+    </h1>
+    <p class="hero-sub fade-up">
+      Comment l'exécution spéculative, conçue pour accélérer les processeurs,
+      peut être exploitée pour exfiltrer des données sensibles — malgré les barrières de protection.
+    </p>
+    <div class="hero-meta fade-up">
+      <span class="meta-chip">Zyad Tajeddine · 362730</span>
+      <span class="meta-chip">Encadrant : Thomas Bourgeat</span>
+      <span class="meta-chip">Bachelor Systèmes de communication · S6</span>
+    </div>
+    <div class="hero-cta fade-up">
+      <a href="flush-reload.html" class="btn btn-primary">Simuler Flush+Reload →</a>
+      <a href="report.html" class="btn btn-ghost">Lire le rapport</a>
+    </div>
+  </div>
+</div>
+
+<!-- RESEARCH QUESTION -->
+<section class="alt">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Problématique</div>
+      <h2>La question centrale</h2>
+    </div>
+    <div class="alert info">
+      <div class="alert-title">Research Question</div>
+      Comment l'exécution spéculative, conçue pour améliorer les performances des processeurs,
+      peut-elle être exploitée pour provoquer une fuite d'informations sensibles via le cache,
+      malgré l'existence de mécanismes de protection tels que les barrières de spéculation ?
+    </div>
+    <div class="cards-grid" style="margin-top:32px;">
+      <div class="card fade-up">
+        <div class="card-icon red">⚡</div>
+        <h3>Exécution spéculative</h3>
+        <p>Les processeurs modernes prédisent les branchements et exécutent du code en avance. Si la prédiction est fausse, les effets sont annulés — mais le cache garde des traces.</p>
+      </div>
+      <div class="card fade-up">
+        <div class="card-icon orange">🔍</div>
+        <h3>Canal auxiliaire (cache)</h3>
+        <p>Les temps d'accès mémoire révèlent si une adresse est en cache ou non. Un attaquant peut mesurer ces différences (~4ns vs ~100ns) pour inférer des données secrètes.</p>
+      </div>
+      <div class="card fade-up">
+        <div class="card-icon blue">🛡️</div>
+        <h3>Barrières de spéculation</h3>
+        <p>Des instructions comme LFENCE ont été introduites pour bloquer la spéculation. Mais leurs effets réels varient selon les architectures matérielles.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- OBJECTIVES -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Objectifs</div>
+      <h2>Ce que ce projet explore</h2>
+      <p>Six axes d'étude, du mécanisme fondamental jusqu'aux limites des protections actuelles.</p>
+    </div>
+    <div class="timeline">
+      <div class="tl-item active">
+        <div class="tl-dot">01</div>
+        <div class="tl-content">
+          <h3>Fonctionnement de Spectre</h3>
+          <p>Comprendre le rôle de la prédiction de branchement, de l'exécution spéculative et du cache dans la fuite d'informations.</p>
+        </div>
+      </div>
+      <div class="tl-item active">
+        <div class="tl-dot">02</div>
+        <div class="tl-content">
+          <h3>Rôle de la prédiction de branchement</h3>
+          <p>Montrer comment une optimisation matérielle conçue pour la performance peut devenir une faiblesse exploitable.</p>
+        </div>
+      </div>
+      <div class="tl-item active">
+        <div class="tl-dot">03</div>
+        <div class="tl-content">
+          <h3>Cache comme canal auxiliaire</h3>
+          <p>Illustrer comment les traces laissées dans le cache après une exécution spéculative annulée peuvent être observées via des mesures de temps d'accès.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot">04</div>
+        <div class="tl-content">
+          <h3>Conséquences en sécurité</h3>
+          <p>Analyser les implications pour la confidentialité des données dans les systèmes modernes — données normalement inaccessibles déduites sans contourner les protections classiques.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot">05</div>
+        <div class="tl-content">
+          <h3>Fonctionnement des barrières</h3>
+          <p>Expliquer le principe général des barrières de spéculation (LFENCE, MFENCE) et comment elles sont censées réduire le risque de fuite.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot">06</div>
+        <div class="tl-content">
+          <h3>Limites des barrières</h3>
+          <p>Étudier les conditions dans lesquelles ces protections peuvent montrer des faiblesses ou laisser subsister des comportements exploitables.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MATERIALS -->
+<section class="alt">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Navigation</div>
+      <h2>Explorer le projet</h2>
+    </div>
+    <div class="nav-cards">
+      <a href="context.html" class="nav-card">
+        <div class="nav-card-icon">📖</div>
+        <h3>Contexte & Background</h3>
+        <p>Prédiction de branchement, exécution spéculative, architecture mémoire — les bases théoriques.</p>
+        <span class="arrow">→</span>
+      </a>
+      <a href="flush-reload.html" class="nav-card">
+        <div class="nav-card-icon">⚡</div>
+        <h3>Flush+Reload</h3>
+        <p>Simulation interactive de l'attaque Flush+Reload. Comprendre le canal auxiliaire cache pas à pas.</p>
+        <span class="arrow">→</span>
+      </a>
+      <a href="spectre.html" class="nav-card">
+        <div class="nav-card-icon">👻</div>
+        <h3>L'attaque Spectre</h3>
+        <p>Mécanisme complet de Spectre v1 : entraîner le prédicteur, provoquer la mauvaise prédiction, extraire.</p>
+        <span class="arrow">→</span>
+      </a>
+      <a href="barriers.html" class="nav-card">
+        <div class="nav-card-icon">🛡️</div>
+        <h3>Barrières & Protections</h3>
+        <p>LFENCE, MFENCE, retpoline — comment fonctionnent-elles et quelles sont leurs limites ?</p>
+        <span class="arrow">→</span>
+      </a>
+      <a href="results.html" class="nav-card">
+        <div class="nav-card-icon">📊</div>
+        <h3>Résultats & Mesures</h3>
+        <p>Observations expérimentales : temps d'accès cache, comportement des barrières, conclusions.</p>
+        <span class="arrow">→</span>
+      </a>
+      <a href="report.html" class="nav-card">
+        <div class="nav-card-icon">📄</div>
+        <h3>Rapport complet</h3>
+        <p>Le rapport final du projet bachelor. À compléter.</p>
+        <span class="arrow">→</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <strong>Projet Bachelor · EPFL · Printemps 2026</strong> &nbsp;·&nbsp;
+  Zyad Tajeddine (362730) &nbsp;·&nbsp; Encadrant : Thomas Bourgeat
+</footer>
+
+<script>
+// NAV TOGGLE
+document.getElementById('nav-toggle').addEventListener('click', () => {
+  document.getElementById('nav-links').classList.toggle('open');
+});
+
+// HERO CANVAS — red glitch particles
+(() => {
+  const canvas = document.getElementById('heroCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let w, h, dpr = 1;
+  const particles = [];
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1;
+    w = rect.width; h = rect.height;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  const COLORS = ['#ff3a3a', '#ff6b6b', '#22c55e', '#60a5fa', '#facc15', '#a78bfa'];
+
+  function mkParticle() {
+    return {
+      x: rand(0, w || 1), y: rand(0, h || 1),
+      vx: rand(-0.4, 0.4), vy: rand(-0.4, 0.4),
+      size: rand(2, 6), opacity: rand(0.05, 0.2),
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      glitch: 0
+    };
+  }
+
+  function seed() {
+    particles.length = 0;
+    for (let i = 0; i < 60; i++) particles.push(mkParticle());
+  }
+
+  function glitchBurst() {
+    const n = Math.floor(rand(4, 10));
+    const picked = new Set();
+    while (picked.size < n) picked.add(Math.floor(Math.random() * particles.length));
+    picked.forEach(i => { particles[i].glitch = performance.now() + rand(300, 700); });
+  }
+
+  function draw(now) {
+    ctx.clearRect(0, 0, w, h);
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x > w) p.x = 0;
+      if (p.x < 0) p.x = w;
+      if (p.y > h) p.y = 0;
+      if (p.y < 0) p.y = h;
+      const glitching = now < p.glitch;
+      ctx.globalAlpha = glitching ? 0.7 : p.opacity;
+      ctx.fillStyle = glitching ? '#ff3a3a' : p.color;
+      ctx.fillRect(p.x, p.y, glitching ? p.size * 2 : p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  seed();
+  window.addEventListener('resize', () => { resize(); });
+  setInterval(glitchBurst, 2000);
+  requestAnimationFrame(draw);
+})();
+</script>
+
+</body>
+</html>

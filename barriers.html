@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barrières & Protections — Spectre EPFL</title>
+  <link rel="stylesheet" href="style.css?v=10">
+  <script defer src="theme.js?v=10"></script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-brand"><span>Spectre</span> &amp; Cache</a>
+    <button id="nav-toggle" class="nav-toggle" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="context.html">Context</a></li>
+      <li><a href="flush-reload.html">Flush+Reload</a></li>
+      <li><a href="spectre.html">Spectre</a></li>
+      <li><a href="barriers.html" class="active">Barriers</a></li>
+      <li><a href="results.html">Results</a></li>
+      <li><a href="report.html">Report</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="page-hero">
+  <div class="container">
+    <div class="section-tag">Mitigations</div>
+    <h1>Barrières & Protections</h1>
+    <p>LFENCE, MFENCE, retpoline — les réponses aux vulnérabilités spectrales, leurs principes et leurs limites.</p>
+  </div>
+</div>
+
+<!-- LFENCE -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Instruction x86</div>
+      <h2>LFENCE — Load Fence</h2>
+      <p>La principale contre-mesure logicielle contre Spectre v1. Mais son comportement exact varie selon les microarchitectures.</p>
+    </div>
+
+    <div class="prose">
+      <p>
+        <strong>Principe :</strong> LFENCE est une barrière qui, selon la documentation Intel, garantit que toutes les instructions LOAD précédentes sont architecturalement complètes avant que les instructions suivantes ne soient exécutées. En théorie, elle empêche la spéculation au-delà d'elle.
+      </p>
+      <p>
+        <strong>Usage anti-Spectre :</strong> en insérant un LFENCE entre la vérification de borne et l'accès au tableau, on force le processeur à attendre le résultat réel de la condition avant de spéculer sur le corps du if.
+      </p>
+    </div>
+
+    <div class="code-block" style="margin-top:24px;">
+<span class="line"><span class="comment">/* Version vulnérable */</span></span>
+<span class="line"><span class="keyword">if</span> (x &lt; array1_size)</span>
+<span class="line">    y = array2[array1[x] * <span class="num">512</span>];    <span class="comment">// ← spéculation possible</span></span>
+<span class="line"></span>
+<span class="line"><span class="comment">/* Version protégée avec LFENCE */</span></span>
+<span class="line"><span class="keyword">if</span> (x &lt; array1_size) {</span>
+<span class="line">    <span class="fn">_mm_lfence</span>();                    <span class="comment">// ← barrière de spéculation</span></span>
+<span class="line">    y = array2[array1[x] * <span class="num">512</span>];    <span class="comment">// spéculation bloquée</span></span>
+<span class="line">}</span>
+<span class="line"></span>
+<span class="line"><span class="comment">/* Alternative : __builtin_speculation_safe_value (GCC) */</span></span>
+<span class="line">x_safe = <span class="fn">__builtin_speculation_safe_value</span>(x);</span>
+<span class="line">y = array2[array1[x_safe] * <span class="num">512</span>];</span>
+    </div>
+
+    <div class="alert warning" style="margin-top:24px;">
+      <div class="alert-title">⚠ Comportement non uniforme</div>
+      Sur certaines microarchitectures, LFENCE ne bloque pas complètement la spéculation. Des observations préliminaires suggèrent que la répétition contrôlée de certaines séquences peut faire apparaître des comportements internes au processeur qui restent difficiles à anticiper — et qui pourraient, dans certains cas, laisser subsister des fuites.
+    </div>
+  </div>
+</section>
+
+<!-- OTHER MITIGATIONS -->
+<section class="alt">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Écosystème de protections</div>
+      <h2>Les autres mitigations</h2>
+    </div>
+
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-icon blue">🔒</div>
+        <h3>MFENCE</h3>
+        <p>Memory fence complète — bloque aussi les stores. Plus lourde que LFENCE. Utilisée quand une barrière totale est nécessaire. Coût performance : ~10–50 cycles selon l'état du pipeline.</p>
+        <div class="code-block" style="margin-top:12px;padding:12px;">
+<span class="line"><span class="fn">_mm_mfence</span>();   <span class="comment">// load + store fence</span></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon green">🐍</div>
+        <h3>Retpoline</h3>
+        <p>Contre-mesure pour Spectre v2 (indirect branches). Remplace les appels indirects par une séquence ret/call qui empêche le BTB (Branch Target Buffer) d'être exploité.</p>
+        <div class="code-block" style="margin-top:12px;padding:12px;">
+<span class="line"><span class="comment">; Retpoline sequence</span></span>
+<span class="line">call setup_target</span>
+<span class="line">pause: lfence</span>
+<span class="line">       jmp pause</span>
+<span class="line">setup_target: mov [rsp], target</span>
+<span class="line">              ret</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon orange">🔧</div>
+        <h3>Microcode updates</h3>
+        <p>Intel et AMD ont publié des mises à jour microcode qui ajoutent des instructions (IBRS, IBPB, STIBP) pour isoler le Branch Predictor entre contextes de sécurité différents.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon purple">🔨</div>
+        <h3>Kernel Page-Table Isolation (KPTI)</h3>
+        <p>Contre-mesure principale contre Meltdown. Isole les tables de pages kernel/userspace. Coût : 5–30% en performance selon les workloads I/O intensifs.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon red">🔐</div>
+        <h3>SLH (Speculative Load Hardening)</h3>
+        <p>Approche compilateur : instrumenter chaque load conditionnel avec une vérification qui rend le résultat "poison" si la spéculation était incorrecte. Intégré dans LLVM/Clang.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon blue">🧱</div>
+        <h3>Isolation des caches</h3>
+        <p>Cache partitioning (Intel CAT) : allouer des partitions de cache L3 séparées à des domaines de sécurité différents pour empêcher les attaques cross-processus.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LIMITS -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Limites</div>
+      <h2>Pourquoi les protections ne sont pas absolues</h2>
+    </div>
+
+    <div class="timeline">
+      <div class="tl-item active">
+        <div class="tl-dot">01</div>
+        <div class="tl-content">
+          <h3>Variabilité microarchitecturale</h3>
+          <p>La spécification x86 ne garantit pas le comportement exact de LFENCE vis-à-vis de la spéculation. Chaque génération de processeur peut l'implémenter différemment — et la documentation ne couvre pas tous les cas.</p>
+        </div>
+      </div>
+      <div class="tl-item active">
+        <div class="tl-dot">02</div>
+        <div class="tl-content">
+          <h3>Comportements émergents par répétition</h3>
+          <p>La répétition contrôlée de certaines séquences peut entraîner des états du prédicteur ou du TLB qui ne correspondent pas au comportement nominal. Ces "warm-up effects" sont difficiles à modéliser.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot">03</div>
+        <div class="tl-content">
+          <h3>Coût performance vs. sécurité</h3>
+          <p>Les barrières les plus fortes (MFENCE, IBRS) ont un coût en performance de 20–40% sur certains workloads. En pratique, elles ne sont pas utilisées systématiquement.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot">04</div>
+        <div class="tl-content">
+          <h3>Nouvelles variantes continues</h3>
+          <p>Spectre v1, v2, v3 (Meltdown), v4 (Speculative Store Bypass), MDS (Zombieload, RIDL)... Chaque mitigation ouvre potentiellement de nouvelles surfaces d'attaque.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:40px;display:flex;gap:12px;flex-wrap:wrap;">
+      <a href="results.html" class="btn btn-primary">Suivant : Résultats & Mesures →</a>
+      <a href="spectre.html" class="btn btn-ghost">← Attaque Spectre</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <strong>Projet Bachelor · EPFL · Printemps 2026</strong> &nbsp;·&nbsp;
+  Zyad Tajeddine (362730) &nbsp;·&nbsp; Encadrant : Thomas Bourgeat
+</footer>
+
+<script>
+document.getElementById('nav-toggle').addEventListener('click', () => {
+  document.getElementById('nav-links').classList.toggle('open');
+});
+</script>
+
+</body>
+</html>
