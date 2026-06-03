@@ -4,21 +4,21 @@
 
   const themes = {
     light: {
-      '--bg': '#f8f9fb',
-      '--bg-card': '#e9edf2',
+      '--bg': '#ffffff',
+      '--bg-card': '#f7f7f7',
       '--bg-elevated': '#ffffff',
-      '--section-bg': '#f8f9fb',
-      '--section-alt': '#e9edf2',
-      '--border': 'rgba(24,24,32,0.1)',
-      '--border-glow': 'rgba(255,80,80,0.25)',
+      '--section-bg': '#ffffff',
+      '--section-alt': '#f7f7f7',
+      '--border': '#e5e5e5',
+      '--border-glow': 'rgba(255,0,0,0.25)',
       '--text': '#181820',
       '--text-muted': '#5f6270',
       '--text-light': '#858895',
-      '--code-bg': '#f7f7f9',
-      '--sim-bg': '#f5f6f8',
+      '--code-bg': '#f7f7f7',
+      '--sim-bg': '#f7f7f7',
       '--log-bg': '#ffffff',
-      '--cache-cold': '#e7e9ee',
-      '--cache-flush': '#f1f2f5'
+      '--cache-cold': '#ededed',
+      '--cache-flush': '#f4f4f4'
     },
     dark: {
       '--bg': '#0a0a0f',
@@ -62,7 +62,7 @@
     const button = document.createElement('button');
     button.className = 'theme-toggle';
     button.type = 'button';
-    button.innerHTML = '<span class="theme-toggle-icon" aria-hidden="true">D</span><span class="theme-toggle-text">Mode sombre</span>';
+    button.innerHTML = '<span class="theme-toggle-icon" aria-hidden="true">☾</span><span class="theme-toggle-text">Mode sombre</span>';
     navInner.appendChild(button);
   }
 
@@ -75,7 +75,7 @@
 
       const icon = button.querySelector('.theme-toggle-icon');
       const text = button.querySelector('.theme-toggle-text');
-      if (icon) icon.textContent = isDark ? 'L' : 'D';
+      if (icon) icon.textContent = isDark ? '☀' : '☾';
       if (text) text.textContent = isDark ? 'Mode clair' : 'Mode sombre';
     });
   }
