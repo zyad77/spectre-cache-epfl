@@ -1,4 +1,4 @@
-/* ===== SPECTRE BACHELOR PROJECT — ZYAD TAJEDDINE / EPFL ===== */
+/* ===== SPECTRE BACHELOR PROJECT â€” ZYAD TAJEDDINE / EPFL ===== */
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
 
 :root {
@@ -43,7 +43,7 @@ body {
   overflow-x: hidden;
 }
 
-/* ── SCANLINE TEXTURE ── */
+/* â”€â”€ SCANLINE TEXTURE â”€â”€ */
 body::before {
   content: none !important;
   display: none !important;
@@ -58,7 +58,7 @@ h1, h2, h3, h4 {
   line-height: 1.15;
 }
 
-/* ── NAV ── */
+/* â”€â”€ NAV â”€â”€ */
 nav {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -101,7 +101,7 @@ nav {
   font-weight: 500;
   font-family: var(--font-mono);
   letter-spacing: 0.04em;
-  color: var(--text-muted);
+  color: #ffffff;
   padding: 6px 12px;
   border-radius: var(--radius);
   transition: color var(--transition), background var(--transition);
@@ -111,7 +111,7 @@ nav {
   color: var(--text);
   background: rgba(255,255,255,0.06);
 }
-.nav-links a.active { color: var(--accent); }
+.nav-links a.active { color: #ffffff; }
 
 .nav-toggle {
   display: none;
@@ -123,14 +123,54 @@ nav {
   padding: 6px;
 }
 
-/* ── CONTAINER ── */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: var(--radius);
+  background: #0a0a0f;
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.theme-toggle:hover {
+  color: #ffffff;
+  border-color: var(--border-glow);
+  background: #14141f;
+}
+
+.theme-toggle-text {
+  color: #ffffff;
+}
+
+.theme-toggle-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+  font-size: 12px;
+}
+
+/* â”€â”€ CONTAINER â”€â”€ */
 .container {
   max-width: 1100px;
   margin: 0 auto;
   padding: 0 24px;
 }
 
-/* ── HERO ── */
+/* â”€â”€ HERO â”€â”€ */
 .hero {
   min-height: 100vh;
   display: flex;
@@ -267,7 +307,7 @@ nav {
   transform: translateY(-2px);
 }
 
-/* ── SECTIONS ── */
+/* â”€â”€ SECTIONS â”€â”€ */
 section {
   padding: 80px 0;
   background: var(--section-bg, var(--bg));
@@ -304,7 +344,7 @@ section.alt {
   line-height: 1.7;
 }
 
-/* ── CARDS GRID ── */
+/* â”€â”€ CARDS GRID â”€â”€ */
 .cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -347,7 +387,7 @@ section.alt {
   line-height: 1.65;
 }
 
-/* ── NAV CARDS (materials) ── */
+/* â”€â”€ NAV CARDS (materials) â”€â”€ */
 .nav-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -387,7 +427,7 @@ section.alt {
   margin-top: 8px;
 }
 
-/* ── MONO CODE BLOCK ── */
+/* â”€â”€ MONO CODE BLOCK â”€â”€ */
 .code-block {
   background: #060609;
   border: 1px solid var(--border);
@@ -416,7 +456,7 @@ section.alt {
   margin-bottom: 12px;
 }
 
-/* ── TIMELINE ── */
+/* â”€â”€ TIMELINE â”€â”€ */
 .timeline {
   display: flex;
   flex-direction: column;
@@ -471,7 +511,7 @@ section.alt {
 .tl-content h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
 .tl-content p { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
 
-/* ── BADGE / TAG ── */
+/* â”€â”€ BADGE / TAG â”€â”€ */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -489,7 +529,7 @@ section.alt {
 .badge.blue { background: rgba(96,165,250,0.12); color: #93c5fd; border: 1px solid rgba(96,165,250,0.2); }
 .badge.yellow { background: rgba(250,204,21,0.1); color: #fde047; border: 1px solid rgba(250,204,21,0.2); }
 
-/* ── STAT ROW ── */
+/* â”€â”€ STAT ROW â”€â”€ */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -520,7 +560,7 @@ section.alt {
   letter-spacing: 0.04em;
 }
 
-/* ── FLUSH+RELOAD INTERACTIVE ── */
+/* â”€â”€ FLUSH+RELOAD INTERACTIVE â”€â”€ */
 .cache-sim {
   background: #06060a;
   border: 1px solid var(--border);
@@ -613,7 +653,7 @@ section.alt {
 .sim-log .log-line.info { color: var(--blue); }
 .sim-log .log-line.secret { color: var(--yellow); }
 
-/* ── PAGE HERO ── */
+/* â”€â”€ PAGE HERO â”€â”€ */
 .page-hero {
   padding: 120px 0 60px;
   border-bottom: 1px solid var(--border);
@@ -630,7 +670,7 @@ section.alt {
   font-size: 16px;
 }
 
-/* ── PROSE ── */
+/* â”€â”€ PROSE â”€â”€ */
 .prose {
   max-width: 720px;
   line-height: 1.8;
@@ -644,7 +684,7 @@ section.alt {
 .prose p { color: var(--text-muted); margin-bottom: 16px; }
 .prose strong { color: var(--text); font-weight: 600; }
 
-/* ── ALERT BOX ── */
+/* â”€â”€ ALERT BOX â”€â”€ */
 .alert {
   border-radius: var(--radius-lg);
   padding: 18px 22px;
@@ -673,7 +713,7 @@ section.alt {
   opacity: 0.7;
 }
 
-/* ── DIVIDER ── */
+/* â”€â”€ DIVIDER â”€â”€ */
 .section-divider {
   display: flex;
   align-items: center;
@@ -692,7 +732,7 @@ section.alt {
   background: var(--border);
 }
 
-/* ── FOOTER ── */
+/* â”€â”€ FOOTER â”€â”€ */
 footer {
   border-top: 1px solid var(--border);
   padding: 32px 0;
@@ -704,7 +744,7 @@ footer {
 }
 footer strong { color: var(--text-muted); }
 
-/* ── MOBILE ── */
+/* â”€â”€ MOBILE â”€â”€ */
 @media (max-width: 700px) {
   .nav-links { display: none; flex-direction: column; position: absolute; top: 58px; left: 0; right: 0; background: var(--bg-card); padding: 12px; border-bottom: 1px solid var(--border); gap: 2px; }
   .nav-links.open { display: flex; }
@@ -713,7 +753,7 @@ footer strong { color: var(--text-muted); }
   .cache-grid { grid-template-columns: repeat(8, 1fr); }
 }
 
-/* ── ANIMATIONS ── */
+/* â”€â”€ ANIMATIONS â”€â”€ */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -732,18 +772,18 @@ footer strong { color: var(--text-muted); }
    artifacts even if an older page-level rule is cached or restored. */
 html:not([data-theme="dark"]) body,
 html[data-theme="light"] body {
-  background: #f8f9fb !important;
+  background: #ffffff !important;
   background-image: none !important;
 }
 
 html:not([data-theme="dark"]) section,
 html[data-theme="light"] section {
-  background: #f8f9fb;
+  background: #ffffff;
 }
 
 html:not([data-theme="dark"]) section.alt,
 html[data-theme="light"] section.alt {
-  background: #e9edf2;
+  background: #f7f7f7;
 }
 
 html:not([data-theme="dark"]) .card,
@@ -776,3 +816,5 @@ body::before {
   background: none !important;
   background-image: none !important;
 }
+
+
